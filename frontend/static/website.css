@@ -1,0 +1,28 @@
+.page {
+    padding: 2rem;
+}
+h1, h2, h3, h4, p {
+    margin: 0 !important;
+}
+body, .root {
+    min-height: 100vh;
+}
+* {
+    transition-duration: 0.25s;
+}
+.title {
+    font-size: 2.5rem;
+    font-weight: 600;
+}
+.read {
+    background-color: var(--accent-color-secondary);
+}
+.read:hover {
+    background-color: black !important;
+}
+.card {
+    cursor: pointer;
+}
+.card:hover {
+    background-color: var(--card-color) !important;
+}
