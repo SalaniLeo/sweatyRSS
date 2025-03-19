@@ -19,28 +19,29 @@ class Feeds {
         this.feeds = [...this.feeds, feed];
     }
 
-    setFeeds(array: any[]) {
-        this.feeds = array;
+    setFeeds(feeds: any[]) {
+        this.feeds = feeds;
     }
 
-    addFeedContent(array: {content: any, id: string}) {
+    addFeedContent(array: {content: any, feed_id: string}) {
         this.feed_content = [array, ...this.feed_content];
+        console.log(this.feed_content)
     }
 
     getReadFeed() {
         return this.read_feeds;
     }
 
-    getFeedContent(id: string) {
-        return this.feed_content.find((feed) => feed.id === id);
+    getFeedContent(feed_id: string) {
+        return this.feed_content.find((feed) => feed.feed_id === feed_id);
     }
 
-    getFeeds = () => {
+    getFeeds() {
         return this.feeds;
     }
 
-    getFeed(id: string) {
-        return this.feeds.find((feed) => feed.id === id);
+    getFeed(feed_id: string) {
+        return this.feeds.find((feed) => feed.feed_id === feed_id);
     }
 
     isRead(feed_id: string, guid: number): boolean {

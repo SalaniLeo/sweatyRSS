@@ -1,10 +1,8 @@
 <script lang="ts">
-	import { goto, invalidate, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { rssFeeds } from '$lib/feeds.svelte';
 	import { user } from '$lib/user.svelte';
 	import ThemeChanger from '$lib/themeChanger.svelte';
-
-	let { data } = $props();
 
 	async function logout() {
 		let request = await fetch('/auth/logout');
@@ -38,12 +36,14 @@
 					<div class="flexcolumn gap2">
 						{#each rssFeeds.getFeeds() as feed, i}
 							<a
-								href="/feeds?id={feed.id}"
+								href="/feeds?id={feed.feed_id}"
 								class="padding2 radius-medium"
 								style="font-size: 0.9rem;"
 							>
 								{feed.title}
 							</a>
+						{:else}
+							<p class="link">You have no feeds!</p>
 						{/each}
 					</div>
 				</div>

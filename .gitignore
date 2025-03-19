@@ -24,4 +24,3 @@ vite.config.ts.timestamp-*
 .svelte-kit
 __pycache__
 docker-compose-local.yml
-docker-compose.yml

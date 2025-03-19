@@ -1,0 +1,74 @@
+services:
+  nginx-proxy:
+    build: backend/nginx
+    restart: always
+    volumes:
+      - ./backend/nginx/default.conf:/tmp/default.conf
+    environment: 
+      - BACKEND=backend:8000
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - frontend
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent --fail localhost:80/health-check || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+    command: /app/start.sh
+
+  backend:
+    build: backend/flask
+    ports: 
+      - '8080:8080'
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_IP=postgres
+      - DATABASE_NAME=sweaty
+      - DATABASE_USER=${POSTGRES_USER}
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent --fail localhost:8000/flask-health-check || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+    command: gunicorn -w 3 -t 60 -b 0.0.0.0:8000 app:app
+
+  frontend:
+    build:
+      context: frontend
+      target: production
+    environment:
+      - BACKEND=http://backend:8000
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent --fail http://localhost || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+
+  postgres:
+    image: postgres:latest
+    restart: always
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./backend/db:/docker-entrypoint-initdb.d
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_DB=sweaty
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d sweaty"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres-data:
+    driver: local

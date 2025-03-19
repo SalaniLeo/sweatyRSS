@@ -1,9 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from '$app/navigation';
 	import { fetchLogin } from '$lib';
-	import { user } from '$lib/user.svelte.js';
-
-	let { data } = $props();
 
 	let username = $state('');
 	let password = $state('');
@@ -12,26 +9,23 @@
 		let request = await fetchLogin(username, password);
 		let response = await request.json();
 
-		if (response.message == 'Login successful') {
-			user.setLogged(true);
-			user.setName(username);
+		if (response.status == 200) {
 			invalidateAll();
-			goto('/');
 		}
 	}
 </script>
 
 <div class="root halign valign">
-	<div class="content flexcolumn padding3 radius-heavy halign valign">
+	<div class="content flexcolumn padding3 radius-heavy halign valign shadow-light">
 		<div class="login hexpand flexcolumn gap4 halign valign padding2">
 			<div class="login hexpand flexcolumn gap3 halign valign padding2">
 				<div class="hexpand flexcolumn gap2">
 					<p class="secondary">Username</p>
-					<input type="text" name="" id="" bind:value={username} />
+					<input type="text" name="" id="" class="shadow-light" bind:value={username} />
 				</div>
 				<div class="hexpand flexcolumn gap2">
 					<p class="secondary">Password</p>
-					<input type="password" name="" id="" bind:value={password} />
+					<input type="password" name="" id="" class="shadow-light" bind:value={password} />
 				</div>
 			</div>
 
@@ -48,7 +42,6 @@
 	* {
 		box-sizing: border-box;
 	}
-
 	.root {
 		display: flex;
 		justify-content: center;

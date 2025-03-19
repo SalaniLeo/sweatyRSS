@@ -32,7 +32,7 @@
 			rssFeeds.addFeed({
 				created_at: new Date().toUTCString(),
 				feed_url: feed,
-				id: response.id,
+				feed_id: response.feed_id,
 				last_check: new Date().toUTCString(),
 				title: title,
 				user_id: data.user.id
@@ -44,14 +44,19 @@
 		}
 	}
 
-	async function Delete(id: number) {
-		let request = await deleteFeed(id);
+	async function Delete(feed_id: string) {
+		console.log(feed_id);
+		let request = await deleteFeed(feed_id);
 		let response = await request.json();
 
 		if (response.status === 200) {
-			rssFeeds.setFeeds(data.feeds.list.filter((feed: { id: number }) => feed.id !== id));
+			rssFeeds.setFeeds(
+				rssFeeds.getFeeds().filter((feed: { feed_id: string }) => feed.feed_id !== feed_id)
+			);
+			console.log(rssFeeds.getFeeds());
 			app.setStatus(response.message, 200);
 		} else {
+			console.log(response.message);
 			app.setStatus(response.message, 400);
 		}
 	}
@@ -209,7 +214,7 @@
 							</div>
 						</div>
 						<div class="gap1 flexcolumn">
-							{#each Object.values(rssFeeds.getFeeds()) as feed (feed.id)}
+							{#each Object.values(rssFeeds.getFeeds()) as feed (feed.feed_id)}
 								<div
 									class="noradius card flexrow valign gap4 space-between shadow-light"
 									class:topradius-heavy={feed === Object.values(rssFeeds.getFeeds())[0]}
@@ -222,7 +227,7 @@
 										<a href={feed.feed_url}>{feed.title} &#8599 </a>
 									</div>
 									<!-- svelte-ignore a11y_consider_explicit_label -->
-									<button class="transparent valign" onclick={() => Delete(feed.feed_url)}>
+									<button class="transparent valign" onclick={() => Delete(feed.feed_id)}>
 										<svg
 											class="icon"
 											viewBox="0 0 24 24"

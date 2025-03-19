@@ -26,3 +26,9 @@ body, .root {
 .card:hover {
     background-color: var(--card-color) !important;
 }
+.fullheight {
+    height: 100vh !important;
+}
+.fullheight > .content {
+    height: 100vh !important;
+}

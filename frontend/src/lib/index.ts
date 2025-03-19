@@ -1,6 +1,4 @@
-import { app } from "./app.svelte";
 import { rssFeeds } from "./feeds.svelte";
-import GlobalToast from "./globalToast.svelte";
 
 export function getElement(item: any, element: string) {
     try {
@@ -82,6 +80,19 @@ export async function fetchLogin(username: string, password: string) {
     })});
 }
 
+export async function fetchRegister(username: string, email: string, password: string) {
+    return await fetch('/auth/register', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            username: username,
+            email: email,
+            password: password
+    })});
+}
+
 export async function verifyPassword(username: string, password: string) {
     return await fetch('/auth/verify', {
         method: 'POST',
@@ -109,14 +120,14 @@ export async function addFeed(feed: string, title: any, last_opened: number) {
     });
 }
 
-export async function deleteFeed(feed: number) {
+export async function deleteFeed(feed_id: string) {
     return await fetch(`/feeds/delete`, { 
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            feed_url: feed
+            feed_id: feed_id
         })
     });
 }
@@ -130,7 +141,7 @@ export async function requestFeed(url: string, id: string) {
         let content = await fetchFeeds(url);
         rssFeeds.addFeedContent({
             content: content,
-            id: id
+            feed_id: id
         });
         return content;
     }
@@ -146,4 +157,22 @@ export async function get_read(feed_id: number) {
             feed_id: feed_id,
         })
     });
+}
+
+export async function getFeeds(fetch: any) {
+    try {
+        const response = await fetch("/feeds/get");
+        return await response.json();
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+export async function doCreateUser(fetch: any) {
+    try {
+        const response = await fetch("/auth/docreate");
+        return await response.json();
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
 }

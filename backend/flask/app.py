@@ -1,20 +1,43 @@
 from flask import Flask, request, jsonify, Response
 import os
-from connect import get_db_connection, connect
+from connect import get_db_connection
 import psycopg2
 from flask_bcrypt import Bcrypt
-import jwt as pyjwt  # Rename to avoid confusion
+import jwt as pyjwt
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from functools import wraps
 import requests
 
-# Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 bcrypt = Bcrypt(app)
+
+@app.route('/api/createdefault', methods=['GET'])
+def createdefault():
+    cur, conn = get_db_connection();
+    try:
+        cur.execute("SELECT * FROM users")
+        user = cur.fetchone()
+
+        return jsonify({
+            "response": user is None,
+            "status": 200
+        }), 200
+
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return jsonify({
+            "response": "Internal server error",
+            "status": 500
+        }), 500
+    finally:
+        if 'cur' in locals():
+            cur.close()
+        if 'conn' in locals():
+            conn.close()
 
 @app.route('/api/user/register', methods=['POST'])
 def register():
@@ -40,21 +63,21 @@ def register():
             )
             conn.commit()
             return jsonify({
-                "response": "User registered successfully",
+                "message": "Register successful",
                 "status": 200
             }), 200
         except psycopg2.Error as e:
             conn.rollback()
             if e.pgcode == '23505':
                 return jsonify({
-                    "response": "Email already in use",
+                    "message": "Email already in use",
                     "status": 409
                 }), 409
             raise
     except Exception as e:
         print(f"Error: {str(e)}")
         return jsonify({
-            "response": "Internal server error",
+            "message": "Internal server error",
             "status": 500
         }), 500
     finally:
@@ -73,28 +96,30 @@ def login():
     conn = None
     try:
         cur, conn = get_db_connection()
-        cur.execute('SELECT id, username, password FROM users WHERE username = %s', 
+        cur.execute('SELECT id, username, email, password FROM users WHERE username = %s', 
                    (data['username'],))
-        user = cur.fetchone()
+        user = cur.fetchone();
 
         cur.execute('SELECT * FROM admins WHERE id = %s', (user[0],))
-        admin = cur.fetchone()
+        admin = cur.fetchone();
 
-        if user and bcrypt.check_password_hash(user[2], data['password']):
+        if user and bcrypt.check_password_hash(user[-1], data['password']):
             token = pyjwt.encode({
                 'user_id': user[0],
                 'username': user[1],
+                'email': user[2],
                 'admin': admin,
                 'exp': datetime.utcnow() + timedelta(hours=24)
-            }, app.config['SECRET_KEY'], algorithm='HS256')
+            }, app.config['SECRET_KEY'], algorithm='HS256');
 
             return jsonify({
                 'message': 'Login successful',
-                'token': token
-            })
-        
+                'token': token,
+                'status': 200
+            });
+
         return jsonify({'message': 'Invalid username or password'}), 401
-    
+
     except Exception as e:
         return jsonify({'message': 'Login failed', 'error': str(e)}), 500
     
@@ -149,7 +174,7 @@ def validate_token(token_string):
         
         cur, conn = get_db_connection()
         cur.execute(
-            'SELECT username, id FROM users WHERE id = %s',
+            'SELECT username, email, id FROM users WHERE id = %s',
             (data['user_id'],)
         )
         user = cur.fetchone()
@@ -161,7 +186,6 @@ def validate_token(token_string):
             )
             admin = cur.fetchone()
             
-            # Convert user tuple to list and add admin status
             user_data = list(user)
             user_data.append(admin is not None)
             
@@ -182,19 +206,20 @@ def validate_token(token_string):
 def check_token():
     auth_header = request.headers.get('Authorization')
     is_valid, user_data = validate_token(auth_header)
-    print(user_data)
+
     if not is_valid or user_data is None:
         return jsonify({
             'valid': False,
             'message': 'Invalid or expired token'
         }), 401
 
-    username, user_id, admin = user_data
+    username, email, user_id, admin = user_data
 
     return jsonify({
         'valid': is_valid,
         'username': username,
         'uuid': user_id,
+        'email': email,
         'admin': admin
     })
 
@@ -203,8 +228,7 @@ def verify_token(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         token = None
-        
-        # Get token from header
+
         auth_header = request.headers.get('Authorization')
         if auth_header and auth_header.startswith('Bearer '):
             token = auth_header.split(' ')[1]
@@ -216,36 +240,34 @@ def verify_token(f):
             }), 401
             
         try:
-            # Decode token
             data = pyjwt.decode(
                 token, 
                 app.config['SECRET_KEY'],
                 algorithms=['HS256']
             )
-            
-            # Verify user exists in database
+
             cur, conn = get_db_connection()
             cur.execute(
-                'SELECT id, username FROM users WHERE id = %s',
+                'SELECT id, email, username FROM users WHERE id = %s',
                 (data['user_id'],)
             )
             current_user = cur.fetchone()
-            
+
             if not current_user:
                 raise pyjwt.InvalidTokenError()
-                
+
         except pyjwt.ExpiredSignatureError:
             return jsonify({
                 'message': 'Token expired',
                 'status': 401
             }), 401
-            
+
         except pyjwt.InvalidTokenError:
             return jsonify({
                 'message': 'Invalid token',
                 'status': 401
             }), 401
-            
+
         finally:
             if 'cur' in locals():
                 cur.close()
@@ -286,8 +308,8 @@ def get_read(current_user):
 
     except psycopg2.Error as e:
         conn.rollback()
-        print(f"Database Error: {e.pgcode} - {e.pgerror}")  # Print detailed error
-        
+        print(f"Database Error: {e.pgcode} - {e.pgerror}")
+
         return jsonify({'message': f'Database error: {e.pgerror}', 'status': 500}), 500
 
     finally:
@@ -324,7 +346,7 @@ def add_read(current_user):
     except psycopg2.Error as e:
         conn.rollback()
         print(f"Database Error: {e.pgcode} - {e.pgerror}")
-        
+
         return jsonify({'message': f'Database error: {e.pgerror}', 'status': 500}), 500
 
     finally:
@@ -350,7 +372,7 @@ def add_feed(current_user):
         cur, conn = get_db_connection()
 
         cur.execute(
-            'INSERT INTO feeds (feed_url, user_id, title) VALUES (%s, %s, %s) RETURNING id',
+            'INSERT INTO feeds (feed_url, user_id, title) VALUES (%s, %s, %s) RETURNING feed_id',
             (data['feed_url'], current_user[0], data['title'])
         )
         feed_id = cur.fetchone()[0]
@@ -364,8 +386,8 @@ def add_feed(current_user):
     
     except psycopg2.Error as e:
         conn.rollback()
-        print(f"Database Error: {e.pgcode} - {e.pgerror}")  # Print detailed error
-        
+        print(f"Database Error: {e.pgcode} - {e.pgerror}")
+
         if e.pgcode == '23505':
             return jsonify({'message': 'Feed already exists for this user', 'status': 409}), 409
         
@@ -382,9 +404,9 @@ def add_feed(current_user):
 @verify_token
 def delete_feed(current_user):
     data = request.get_json()
-    if not data or not data.get('feed_url'):
+    if not data or not data.get('feed_id'):
         return jsonify({
-            'message': 'Missing feed URL',
+            'message': 'Missing feed ID',
             'status': 400
         }), 400
 
@@ -394,8 +416,8 @@ def delete_feed(current_user):
         cur, conn = get_db_connection()
         
         cur.execute(
-            'DELETE FROM feeds WHERE feed_url = %s AND user_id = %s RETURNING id',
-            (data['feed_url'], current_user[0])
+            'DELETE FROM feeds WHERE feed_id = %s AND user_id = %s RETURNING feed_id',
+            (data['feed_id'], current_user[0])
         )
         deleted_feed_id = cur.fetchone()
         conn.commit()
@@ -438,7 +460,7 @@ def fetch_feed(current_user):
 
     try:
         response = requests.get(data['feed_url'])
-        response.raise_for_status()  # Raise an exception for HTTP errors
+        response.raise_for_status()
 
         return Response(response.content, content_type='application/xml')
 
@@ -468,7 +490,7 @@ def get_user_feeds(current_user):
 
         cur.execute(
             'SELECT * FROM read_elements WHERE user_id = %s',
-            (current_user[0],)  # Ensure this is a tuple
+            (current_user[0],)
         )
         read_elements = cur.fetchall()
 

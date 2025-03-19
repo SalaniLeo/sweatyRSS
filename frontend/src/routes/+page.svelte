@@ -35,12 +35,16 @@
 <div class="content">
 	<div class="wrapper flexcolumn">
 		<div class="padding4">
-			<h1 class="title">Home, welcome {data.user.name}!</h1>
-			<h3>You have unread feeds from:</h3>
+			<h1 class="title">Welcome {data.user.name}!</h1>
+			{#if Object.values(rssFeeds.getFeeds()).length > 0}
+				<h3>You have unread feeds from:</h3>
+			{:else}
+				<h3>You have no feeds!</h3>
+			{/if}
 		</div>
 		<div class="feeds flexcolumn gap4 padding3">
-			{#each rssFeeds.getFeeds() as feed}
-				{#await requestFeed(feed.feed_url, feed.id)}
+			{#each rssFeeds.getFeeds() as feed (feed.feed_id)}
+				{#await requestFeed(feed.feed_url, feed.feed_id)}
 					<div class="flexrow hstartalign card shadow">
 						<p class="secondary">{feed.title} -</p>
 						<div style="scale: 50%; transform: translateY(2px);">
@@ -48,38 +52,36 @@
 						</div>
 					</div>
 				{:then rss}
-					{#if getUnreadItems(rss, feed.id).length > 0}
-						<!-- svelte-ignore a11y_no_static_element_interactions -->
+					{#if getUnreadItems(rss, feed.feed_id).length > 0}
 						<div class="flexcolumn gap3">
-							<!-- svelte-ignore a11y_click_events_have_key_events -->
 							<div
 								class="card space-between flexrow shadow"
-								class:open={expand.find((e) => e === feed.id)}
+								class:open={expand.find((e) => e === feed.feed_id)}
 								onclick={() => {
-									if (expand.find((e) => e === feed.id)) {
-										expand = expand.filter((e) => e !== feed.id);
+									if (expand.find((e) => e === feed.feed_id)) {
+										expand = expand.filter((e) => e !== feed.feed_id);
 									} else {
-										expand = [...expand, feed.id];
+										expand = [...expand, feed.feed_id];
 									}
 								}}
 							>
 								<p>
 									<span class="secondary">{feed.title}</span> -
-									<span class="tertiary">{getUnreadItems(rss, feed.id).length}</span>
+									<span class="tertiary">{getUnreadItems(rss, feed.feed_id).length}</span>
 								</p>
-								{#if expand.find((e) => e === feed.id)}
+								{#if expand.find((e) => e === feed.feed_id)}
 									<p class="tertiary">Click to hide</p>
 								{:else}
 									<p class="tertiary">Click to expand</p>
 								{/if}
 							</div>
-							{#if expand.find((e) => e === feed.id)}
+							{#if expand.find((e) => e === feed.feed_id)}
 								<div class="items flexcolumn gap1 radius-heavy">
-									{#each getUnreadItems(rss, feed.id) as item, u}
+									{#each getUnreadItems(rss, feed.feed_id) as item, u}
 										<NewsRow
 											{data}
 											{item}
-											feed_id={feed.id}
+											feed_id={feed.feed_id}
 											news_id={u + 1}
 											guid={getElement(item, 'guid')}
 										></NewsRow>

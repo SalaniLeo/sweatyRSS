@@ -8,10 +8,12 @@
 
 	let { data } = $props();
 
-	function getItemsFromFeed(id: string) {
+	function getItemsFromFeed(id: number) {
 		let feed = rssFeeds.getFeedContent(id).content;
 		return feed.getElementsByTagName('item');
 	}
+
+	console.log(data);
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->

@@ -1,28 +1,56 @@
 <script lang="ts">
 	import GlobalToast from './../lib/globalToast.svelte';
 	import { page } from '$app/stores';
-	import { redirect } from '@sveltejs/kit';
 	import Sidebar from './../lib/components/sidebar.svelte';
 	import { user } from '$lib/user.svelte';
 	import { rssFeeds } from '$lib/feeds.svelte';
+	import Loader from '$lib/loader.svelte';
+	import { goto } from '$app/navigation';
+	import { doCreateUser } from '$lib';
 
 	let { children, data } = $props();
+	let initialized = $state(false);
 
-	if (data.backend.validated) {
-		user.setLogged(true);
-		user.setName(data.user?.name ?? '');
-	} else if (!data.backend.validated && $page.url.pathname != '/auth/login') {
-		throw redirect(308, '/auth/login');
+	$effect(() => {
+		if (data.backend.validated) {
+			user.setLogged(true);
+			user.setName(data.user?.name ?? '');
+			rssFeeds.setFeeds(data.feeds?.list ?? []);
+			rssFeeds.setReadFeed(data.feeds?.read ?? []);
+		} else if (
+			!data.backend.validated &&
+			$page.url.pathname != '/auth/login' &&
+			$page.url.pathname != '/auth/register'
+		) {
+			redirect();
+		}
+		initialized = true;
+	});
+
+	async function redirect() {
+		let doCreate = await doCreateUser(fetch);
+		console.log(doCreate);
+		if (doCreate.response === true) {
+			goto('/auth/register');
+		} else {
+			goto('/auth/login');
+		}
 	}
-	rssFeeds.setFeeds(data.feeds?.list ?? []);
-	rssFeeds.setReadFeed(data.feeds?.read);
 </script>
 
-<div class="root flexrow">
+{#if initialized}
 	{#if user.getLogged()}
-		<Sidebar {data}></Sidebar>
-	{/if}
-	{@render children()}
-</div>
+		<div class="root flexrow">
+			<Sidebar></Sidebar>
+			{@render children()}
+		</div>
 
-<GlobalToast {data}></GlobalToast>
+		<GlobalToast {data}></GlobalToast>
+	{:else}
+		{@render children()}
+	{/if}
+{:else}
+	<div class="fullheight">
+		<Loader></Loader>
+	</div>
+{/if}

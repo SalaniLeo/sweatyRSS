@@ -1,21 +1,18 @@
 import { env } from '$env/dynamic/private';
-import { validateSession } from '$lib';
-import { user } from '$lib/user.svelte.js';
+import { getFeeds, validateSession } from '$lib';
+import { redirect } from '@sveltejs/kit';
 
-export const load = async ({ cookies, fetch }) => {
+export const load = async ({ cookies, fetch, url }) => {
     const backendUrl = env.BACKEND || '';
     const userData = await validateSession(backendUrl, cookies);
-    let feedsData: {
-        read: any; feeds: any[] 
-} = {
-    feeds: [],
-    read: undefined
-};
+    let feedsData = { feeds: [], read: undefined };
+
+    // Allow access to login and register pages without authentication
+    if (!userData.valid && !['/auth/login', '/auth/register'].includes(url.pathname)) {
+        throw redirect(302, '/auth/login');
+    }
 
     if (userData.valid) {
-        user.setLogged(true);
-        user.setName(userData.username);
-    
         feedsData = await getFeeds(fetch);
         return {
             backend: {
@@ -24,7 +21,7 @@ export const load = async ({ cookies, fetch }) => {
             },
             user: {
                 name: userData.username,
-                id: userData.uuid  // Add user ID here
+                id: userData.uuid
             },
             feeds: {
                 list: feedsData.feeds,
@@ -32,7 +29,6 @@ export const load = async ({ cookies, fetch }) => {
             }
         };
     }
-    
 
     return {
         backend: {
@@ -41,12 +37,3 @@ export const load = async ({ cookies, fetch }) => {
         }
     };
 };
-
-async function getFeeds(fetch: any) {
-    try {
-        const response = await fetch("/feeds/get");
-        return await response.json();
-    } catch (error: any) {
-        return { success: false, error: error.message };
-    }
-}
